@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: c99761a8-a7f7-4262-89b1-a28de14622d8
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+cloudResources:
+  collections:
+    ..\postman\collections\My Collection: 53296873-5d5c25ba-b4b5-4ffb-9eab-f56ef415972c
+    ..\postman\collections\Fake News Detector API: 53296873-3acc340b-0d60-4520-87d3-b114c5c2fc8f
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

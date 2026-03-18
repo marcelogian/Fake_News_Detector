@@ -1,0 +1,51 @@
+$kind: http-request
+url: "{{baseUrl}}/predict"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: ""
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is JSON", function () {
+          pm.response.to.be.json;
+      });
+
+      pm.test("Response has required fields", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("label");
+          pm.expect(jsonData).to.have.property("is_fake");
+          pm.expect(jsonData).to.have.property("confidence");
+          pm.expect(jsonData).to.have.property("processing_time_ms");
+      });
+
+      pm.test("Label is FAKE or REAL", function () {
+          const jsonData = pm.response.json();
+          pm.expect(["FAKE", "REAL"]).to.include(jsonData.label);
+      });
+
+      pm.test("is_fake is boolean", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.is_fake).to.be.a("boolean");
+      });
+
+      pm.test("Confidence is a number between 0 and 100", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.confidence).to.be.a("number");
+          pm.expect(jsonData.confidence).to.be.at.least(0);
+          pm.expect(jsonData.confidence).to.be.at.most(100);
+      });
+
+      pm.test("Processing time is a positive number", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.processing_time_ms).to.be.a("number");
+          pm.expect(jsonData.processing_time_ms).to.be.at.least(0);
+      });
+    language: text/javascript
+order: 1000

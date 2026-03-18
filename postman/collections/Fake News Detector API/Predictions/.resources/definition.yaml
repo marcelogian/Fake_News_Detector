@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints for classifying news articles as FAKE or REAL.
+order: 1000

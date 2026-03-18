@@ -1,0 +1,22 @@
+$kind: collection
+description: >-
+  Flask REST API for classifying news articles as FAKE or REAL using NLP/ML
+  pipeline.
+
+
+  ## Endpoints
+
+  - **POST /predict** — Classify a single news article
+
+  - **POST /predict/batch** — Classify multiple articles (max 50)
+
+  - **GET /health** — Service health check
+
+  - **GET /model/info** — Loaded model metadata
+
+
+  ## Authentication
+
+  No authentication required (CORS enabled for frontend demo).
+variables:
+  baseUrl: http://localhost:5000

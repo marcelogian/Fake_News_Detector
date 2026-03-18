@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake News Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Syne',sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh;padding:2rem 1rem}
+:root{--fake:#c0392b;--real:#1a7a4a;--muted:#6b6b65;--border:rgba(0,0,0,.1);--fakebg:#fdf2f1;--realbg:#f1faf5;--neutralbg:#efefed}
+
+.shell{max-width:680px;margin:0 auto}
+
+.header{margin-bottom:2rem}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:.4rem}
+.logo-icon{width:34px;height:34px;background:#1a1a18;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
+.tagline{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.api-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:.5rem}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#ccc;transition:background .3s}
+.status-dot.online{background:#1a7a4a}
+.status-dot.offline{background:#c0392b}
+
+.samples{margin:.75rem 0 1rem}
+.samples-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.5rem}
+.sample-pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:12px;padding:4px 11px;border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--muted);transition:all .15s;font-family:'IBM Plex Mono',monospace;background:#fff}
+.pill:hover{color:#1a1a18;border-color:#1a1a18}
+.pill.fake-pill:hover{color:var(--fake);border-color:var(--fake)}
+.pill.real-pill:hover{color:var(--real);border-color:var(--real)}
+
+.input-zone{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
+.input-zone textarea{width:100%;min-height:160px;padding:16px;font-size:14px;font-family:'Syne',sans-serif;color:#1a1a18;background:transparent;border:none;outline:none;resize:vertical;line-height:1.6}
+.input-zone textarea::placeholder{color:var(--muted)}
+.input-footer{border-top:1px solid var(--border);padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.char-count{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+
+.analyze-btn{padding:9px 22px;background:#1a1a18;color:#fff;border:none;border-radius:8px;font-size:14px;font-family:'Syne',sans-serif;font-weight:500;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;gap:7px}
+.analyze-btn:hover{opacity:.85}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.analyze-btn.loading .spinner{display:block}
+.analyze-btn.loading .btn-text{opacity:.7}
+
+.result-card{margin-top:1.25rem;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:none;animation:slideIn .3s ease;background:#fff}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.verdict-bar{padding:16px 18px;display:flex;align-items:center;gap:14px}
+.verdict-bar.fake{background:var(--fakebg);border-bottom:1px solid rgba(192,57,43,.15)}
+.verdict-bar.real{background:var(--realbg);border-bottom:1px solid rgba(26,122,74,.15)}
+
+.verdict-badge{font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:500;padding:4px 10px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;display:inline-block;margin-bottom:6px}
+.verdict-badge.fake{background:var(--fake);color:#fff}
+.verdict-badge.real{background:var(--real);color:#fff}
+
+.verdict-label{font-size:20px;font-weight:700;letter-spacing:-.5px}
+.verdict-label.fake{color:var(--fake)}
+.verdict-label.real{color:var(--real)}
+
+.conf-ring{position:relative;width:56px;height:56px;flex-shrink:0}
+.conf-ring svg{transform:rotate(-90deg)}
+.conf-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.conf-pct.fake{color:var(--fake)}
+.conf-pct.real{color:var(--real)}
+
+.metrics-grid{padding:14px 18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;border-bottom:1px solid var(--border)}
+.metric{background:var(--neutralbg);border-radius:8px;padding:10px 12px}
+.metric-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.metric-val{font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+
+.signal-section{padding:14px 18px;border-bottom:1px solid var(--border)}
+.signal-title{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.signals{display:flex;flex-wrap:wrap;gap:6px}
+.sig{font-size:12px;padding:4px 10px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+.sig.red{background:rgba(192,57,43,.1);color:var(--fake)}
+.sig.green{background:rgba(26,122,74,.1);color:var(--real)}
+.sig.gray{background:var(--neutralbg);color:var(--muted)}
+
+.source-badge{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;border-radius:4px;background:rgba(26,122,74,.1);color:var(--real);margin-left:auto}
+.source-badge.local{background:var(--neutralbg);color:var(--muted)}
+
+.cleaned-section{padding:14px 18px}
+.cleaned-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.cleaned-text{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted);line-height:1.6;background:var(--neutralbg);padding:10px;border-radius:6px;word-break:break-all}
+
+.error-banner{background:var(--fakebg);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--fake);display:none;margin-top:.75rem}
+
+.history{margin-top:1.5rem}
+.hist-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.75rem}
+.hist-items{display:flex;flex-direction:column;gap:6px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .1s;overflow:hidden;background:#fff}
+.hist-item:hover{background:var(--neutralbg)}
+.hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hist-dot.fake{background:var(--fake)}
+.hist-dot.real{background:var(--real)}
+.hist-snippet{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.hist-verdict{font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:500;flex-shrink:0}
+.hist-verdict.fake{color:var(--fake)}
+.hist-verdict.real{color:var(--real)}
+.hist-conf{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);flex-shrink:0;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <h1>Fake News Detector</h1>
+    </div>
+    <div class="tagline">NLP · TF-IDF · Scikit-learn · Flask API</div>
+    <div class="api-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">checking api…</span>
+    </div>
+  </div>
+
+  <div class="samples">
+    <div class="samples-label">Try a sample</div>
+    <div class="sample-pills">
+      <span class="pill fake-pill" onclick="loadSample('fake1')">🚨 Conspiracy</span>
+      <span class="pill fake-pill" onclick="loadSample('fake2')">🚨 Sensational</span>
+      <span class="pill fake-pill" onclick="loadSample('fake3')">🚨 Clickbait</span>
+      <span class="pill real-pill" onclick="loadSample('real1')">✓ Policy news</span>
+      <span class="pill real-pill" onclick="loadSample('real2')">✓ Science report</span>
+      <span class="pill real-pill" onclick="loadSample('real3')">✓ Economics</span>
+    </div>
+  </div>
+
+  <div class="input-zone">
+    <textarea id="articleInput" placeholder="Paste a news article or headline here… (Ctrl+Enter to analyze)" oninput="updateCount()"></textarea>
+    <div class="input-footer">
+      <span class="char-count" id="charCount">0 / 50,000</span>
+      <button class="analyze-btn" onclick="analyze()" id="analyzeBtn">
+        <div class="spinner"></div>
+        <span class="btn-text">Analyze →</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="verdict-bar" id="verdictBar">
+      <div style="flex:1">
+        <div class="verdict-badge" id="verdictBadge"></div>
+        <div class="verdict-label" id="verdictLabel"></div>
+      </div>
+      <div class="conf-ring">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e5e3" stroke-width="4"/>
+          <circle id="confArc" cx="28" cy="28" r="22" fill="none" stroke-width="4" stroke-linecap="round"
+            stroke-dasharray="138.2" stroke-dashoffset="138.2" style="transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)"/>
+        </svg>
+        <div class="conf-pct" id="confPct">0%</div>
+      </div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-label">Word count</div>
+        <div class="metric-val" id="mWords">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Tokens</div>
+        <div class="metric-val" id="mTokens">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Confidence</div>
+        <div class="metric-val" id="mConf">—</div>
+      </div>
+    </div>
+
+    <div class="signal-section">
+      <div style="display:flex;align-items:center;margin-bottom:10px">
+        <div class="signal-title" style="margin-bottom:0">Detected signals</div>
+        <span class="source-badge" id="sourceBadge"></span>
+      </div>
+      <div class="signals" id="signalsList"></div>
+    </div>
+
+    <div class="cleaned-section">
+      <div class="cleaned-label">Preprocessed tokens (from API)</div>
+      <div class="cleaned-text" id="cleanedPreview"></div>
+    </div>
+  </div>
+
+  <div class="history" id="historySection" style="display:none">
+    <div class="hist-label">Recent analyses</div>
+    <div class="hist-items" id="historyItems"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+
+const SAMPLES = {
+  fake1: "BOMBSHELL: Scientists HIDE the TRUTH about vaccines — leaked documents EXPOSE government cover-up! Deep state elites conspiring against American people. SHARE before they delete this! The mainstream media REFUSES to cover this shocking revelation that affects every family in the country!",
+  fake2: "BREAKING: Celebrity ARRESTED for secret crimes — you won't BELIEVE what they found! Anonymous sources confirm the explosive allegations that have been SUPPRESSED by the globalist media elite for years. Wake up sheeple! The truth is finally coming out and they can't stop it!",
+  fake3: "URGENT: 5G towers PROVEN to cause cancer by independent researchers — big pharma funding EXPOSED. The government doesn't want you to know this. Thousands are dying every day and nobody is talking about it. FORWARD this to everyone you know before it's censored!",
+  real1: "The Federal Reserve raised its benchmark interest rate by 25 basis points on Wednesday, continuing its campaign to bring inflation down to its 2% target. Chair Jerome Powell indicated the central bank would remain data-dependent in future decisions, with markets pricing in a pause at the next meeting.",
+  real2: "Researchers at Stanford University have published findings in Nature Medicine showing a new mRNA-based therapy reduced tumor size in 67% of trial participants with advanced pancreatic cancer. The Phase II trial enrolled 340 patients across 12 sites. Scientists cautioned that larger trials are needed before the treatment can be approved for widespread use.",
+  real3: "The United States economy added 187,000 jobs in July, slightly below economists' forecasts of 200,000, according to the Bureau of Labor Statistics. The unemployment rate ticked down to 3.5%. Wage growth remained at 4.3% year-over-year, a figure the Fed is watching closely as it weighs further rate adjustments."
+};
+
+const fakeSignals = [
+  ["ALL CAPS words", /\b[A-Z]{3,}\b/g, "red"],
+  ["Exclamation marks", /!/g, "red"],
+  ["Sensational verbs", /\b(expose[sd]?|reveal[sd]?|cover.up|conspirac|bombshell|shock|suppres|secret)\b/gi, "red"],
+  ["Urgency language", /\b(urgent|breaking|alert|must.share|before.*delet|wake up|sheeple|forward this|censored)\b/gi, "red"],
+  ["Anonymous sources", /\b(anonymous|sources say|insiders|whistleblower|leaked)\b/gi, "red"],
+  ["Vague entities", /\b(they|elites?|deep state|globalist|mainstream media)\b/gi, "red"],
+];
+const realSignals = [
+  ["Institutional source", /\b(according to|researchers|officials|bureau|university|published|study|report|trial)\b/gi, "green"],
+  ["Quantified data", /\b\d+[.,]?\d*\s*(%|percent|basis points|jobs|patients)\b/gi, "green"],
+  ["Hedged language", /\b(cautioned|indicate[sd]?|remain|data.dependent|notes?|suggests?)\b/gi, "green"],
+  ["Named sources", /\b(dr\.?|professor|chair|minister|director|secretary|powell|stanford|fed|bureau|cdc|fda)\b/gi, "green"],
+];
+
+let history = [];
+let apiOnline = false;
+
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2000) });
+    apiOnline = r.ok;
+  } catch {
+    apiOnline = false;
+  }
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + (apiOnline ? 'online' : 'offline');
+  txt.textContent = apiOnline ? 'api online — localhost:5000' : 'api offline — using local fallback';
+}
+
+checkHealth();
+setInterval(checkHealth, 10000);
+
+function updateCount() {
+  const v = document.getElementById('articleInput').value;
+  document.getElementById('charCount').textContent = `${v.length.toLocaleString()} / 50,000`;
+}
+
+function loadSample(key) {
+  document.getElementById('articleInput').value = SAMPLES[key];
+  updateCount();
+  document.getElementById('errorBanner').style.display = 'none';
+}
+
+function detectSignals(text) {
+  const found = [];
+  for (const [label, rx, cls] of fakeSignals) {
+    const m = text.match(rx);
+    if (m && m.length > 0) found.push({ label, count: m.length, cls });
+  }
+  for (const [label, rx, cls] of realSignals) {
+    const m = text.match(rx);
+    if (m && m.length > 0) found.push({ label, count: m.length, cls });
+  }
+  return found;
+}
+
+function localPredict(text) {
+  const upper = (text.match(/\b[A-Z]{3,}\b/g)||[]).length;
+  const excl  = (text.match(/!/g)||[]).length;
+  const sens  = (text.match(/\b(expose[sd]?|reveal[sd]?|cover.up|conspirac|bombshell|shocking|suppres|secret|hidden|truth|elites?|deep state|wake up|sheeple|globalist|censored|you won't believe)\b/gi)||[]).length;
+  const urg   = (text.match(/\b(urgent|breaking|alert|must share|before.*delet|forward this|mainstream media)\b/gi)||[]).length;
+  const real  = (text.match(/\b(according to|researchers|officials|published|study|report|bureau|university|percent|basis points|confirmed|indicated|cautioned)\b/gi)||[]).length;
+  const named = (text.match(/\b(dr\.?|professor|chair|minister|director|secretary|federal reserve|stanford|mit|who|cdc|fda|nasa)\b/gi)||[]).length;
+  const fakeScore = upper * 2 + excl * 1.5 + sens * 3 + urg * 3;
+  const realScore = real * 2.5 + named * 2;
+  const total = fakeScore - realScore;
+  const isFake = total >= 0;
+  const confidence = Math.min(98, 55 + Math.abs(total) * 2);
+  const cleaned = text.toLowerCase().replace(/[^\w\s]/g,' ').split(/\s+/).filter(w=>w.length>2).slice(0,16).join(' ');
+  return {
+    label: isFake ? 'FAKE' : 'REAL',
+    is_fake: isFake,
+    confidence: Math.round(confidence * 10) / 10,
+    cleaned_preview: cleaned,
+    word_count: text.split(/\s+/).filter(Boolean).length,
+    _source: 'local'
+  };
+}
+
+async function analyze() {
+  const text = document.getElementById('articleInput').value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  document.getElementById('errorBanner').style.display = 'none';
+  document.getElementById('resultCard').style.display = 'none';
+
+  let result;
+  let source = 'api';
+
+  try {
+    if (apiOnline) {
+      const resp = await fetch(`${API}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        signal: AbortSignal.timeout(8000)
+      });
+      if (resp.ok) {
+        result = await resp.json();
+      } else {
+        const err = await resp.json();
+        throw new Error(err.error || 'API error');
+      }
+    } else {
+      throw new Error('offline');
+    }
+  } catch (e) {
+    source = 'local';
+    result = localPredict(text);
+    if (e.message !== 'offline') {
+      document.getElementById('errorBanner').textContent = `API error: ${e.message} — using local fallback`;
+      document.getElementById('errorBanner').style.display = 'block';
+    }
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+
+  showResult(result, text, source);
+}
+
+function showResult(r, origText, source) {
+  const isFake = r.is_fake;
+  const conf   = r.confidence;
+  const wc     = r.word_count || origText.split(/\s+/).filter(Boolean).length;
+  const tokens = r.cleaned_preview ? r.cleaned_preview.split(' ').length : '—';
+
+  document.getElementById('verdictBar').className = 'verdict-bar ' + (isFake ? 'fake' : 'real');
+
+  const badge = document.getElementById('verdictBadge');
+  badge.textContent = isFake ? '⚠ Likely Fake' : '✓ Likely Real';
+  badge.className = 'verdict-badge ' + (isFake ? 'fake' : 'real');
+
+  const lbl = document.getElementById('verdictLabel');
+  lbl.textContent = isFake ? 'Misinformation detected' : 'Appears credible';
+  lbl.className = 'verdict-label ' + (isFake ? 'fake' : 'real');
+
+  const arc = document.getElementById('confArc');
+  arc.style.stroke = isFake ? 'var(--fake)' : 'var(--real)';
+  setTimeout(() => { arc.style.strokeDashoffset = 138.2 * (1 - conf / 100); }, 50);
+
+  const pct = document.getElementById('confPct');
+  pct.textContent = Math.round(conf) + '%';
+  pct.className = 'conf-pct ' + (isFake ? 'fake' : 'real');
+
+  document.getElementById('mWords').textContent = wc;
+  document.getElementById('mTokens').textContent = tokens;
+  document.getElementById('mConf').textContent = Math.round(conf) + '%';
+
+  const sb = document.getElementById('sourceBadge');
+  sb.textContent = source === 'api' ? '✓ via Flask API' : '⚡ local fallback';
+  sb.className = 'source-badge' + (source === 'api' ? '' : ' local');
+
+  const signals = detectSignals(origText);
+  document.getElementById('signalsList').innerHTML = signals.length
+    ? signals.map(s => `<span class="sig ${s.cls}">${s.label} (${s.count})</span>`).join('')
+    : `<span class="sig gray">No strong signals detected</span>`;
+
+  document.getElementById('cleanedPreview').textContent = r.cleaned_preview
+    ? r.cleaned_preview + '…'
+    : '(run with API online to see NLTK-preprocessed tokens)';
+
+  document.getElementById('resultCard').style.display = 'block';
+
+  history.unshift({ text: origText, snippet: origText.slice(0, 55) + '…', label: r.label, conf });
+  if (history.length > 5) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const sec = document.getElementById('historySection');
+  const items = document.getElementById('historyItems');
+  if (!history.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  items.innerHTML = history.map((h, i) => `
+    <div class="hist-item" onclick="reloadHistory(${i})">
+      <div class="hist-dot ${h.label.toLowerCase()}"></div>
+      <span class="hist-snippet">${h.snippet}</span>
+      <span class="hist-verdict ${h.label.toLowerCase()}">${h.label}</span>
+      <span class="hist-conf">${Math.round(h.conf)}%</span>
+    </div>`).join('');
+}
+
+function reloadHistory(i) {
+  document.getElementById('articleInput').value = history[i].text;
+  updateCount();
+  analyze();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyze();
+});
+</script>
+</body>
+</html>

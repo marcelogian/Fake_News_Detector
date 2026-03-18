@@ -1,0 +1,32 @@
+$kind: http-request
+url: "{{baseUrl}}/model/info"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is JSON", function () {
+          pm.response.to.be.json;
+      });
+
+      pm.test("Response has required fields", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("classifier");
+          pm.expect(jsonData).to.have.property("vectorizer");
+          pm.expect(jsonData).to.have.property("labels");
+      });
+
+      pm.test("Labels is an array", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.labels).to.be.an("array");
+      });
+
+      pm.test("Labels contain FAKE and REAL", function () {
+          const jsonData = pm.response.json();
+          pm.expect(jsonData.labels).to.include.members(["FAKE", "REAL"]);
+      });
+    language: text/javascript
+order: 3000
