@@ -14,7 +14,7 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 # Must be imported at module level so pickle can resolve custom classes
@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── App setup ──────────────────────────────────────────────────────────────────
-app = Flask(__name__)
+app = Flask(__name__, template_folder=".")
 CORS(app)  # allow requests from frontend demo
 
 # ── Load model (lazy, cached) ──────────────────────────────────────────────────
@@ -58,6 +58,10 @@ def error_response(message: str, status: int = 400):
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
+@app.route("/")
+def home():
+    return render_template('demo.html')
+
 
 @app.route("/health", methods=["GET"])
 def health():
